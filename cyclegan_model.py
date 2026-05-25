@@ -43,8 +43,7 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()  # 初始化父類
 
         # Define all convolutional layers
-        # Should accept an RGB image as input and output a single value
-        # 注意：註解寫 single value，但實際輸出是 1-channel feature map（PatchGAN）
+        # Should accept an RGB image as input and output a 1-channel feature map（PatchGAN）
         self.conv1 = conv(3, 64, 4, batch_norm=False)   # 第一層通常不做 BN
         self.conv2 = conv(64, 128, 4)                   # 後續層使用 BN，穩定分佈
         self.conv3 = conv(128, 256, 4)
