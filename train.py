@@ -7,7 +7,7 @@ import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
 
-from data import get_data_loader, scale
+from data_loader import get_data_loader, scale
 from cyclegan_model import create_model
 
 
