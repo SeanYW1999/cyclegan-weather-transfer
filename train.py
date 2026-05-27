@@ -89,7 +89,11 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
     device = next(G_XtoY.parameters()).device
 
     for epoch in range(1, n_epochs + 1):
-
+        G_XtoY.train()
+        G_YtoX.train()
+        D_X.train()
+        D_Y.train()
+        
         # 重新建立 iterator（避免 StopIteration）
         if epoch % batches_per_epoch == 0:
             iter_X = iter(dataloader_X)
@@ -119,7 +123,7 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
         G_Y2X_fake_image = G_YtoX(images_Y)
 
         # 假 X 圖的 loss
-        D_X_fake_loss = fake_mse_loss(D_X(G_Y2X_fake_image))
+        D_X_fake_loss = fake_mse_loss(D_X(G_Y2X_fake_image.detach()))
 
         # D_X total loss
         d_x_loss = D_X_real_loss + D_X_fake_loss
@@ -127,13 +131,11 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
         d_x_optimizer.step()
 
         # ----- D_Y -----
-        # 你原始碼缺少 d_y_optimizer.zero_grad()，這裡補註解提醒，但不改訓練邏輯片段時，
-        # 建議你在原始碼中加上，避免梯度累積造成訓練不穩。
         d_y_optimizer.zero_grad()
 
         D_Y_real_loss = real_mse_loss(D_Y(images_Y))
         G_X2Y_fake_image = G_XtoY(images_X)
-        D_Y_fake_loss = fake_mse_loss(D_Y(G_X2Y_fake_image))
+        D_Y_fake_loss = fake_mse_loss(D_Y(G_X2Y_fake_image.detach()))
 
         d_y_loss = D_Y_real_loss + D_Y_fake_loss
         d_y_loss.backward()
