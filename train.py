@@ -43,9 +43,9 @@ beta2= 0.999
 g_params = list(G_XtoY.parameters()) + list(G_YtoX.parameters())  # Get generator parameters
 
 # Create optimizers for the generators and discriminators
-g_optimizer = optim.Adam(g_params, lr, [beta1, beta2])
-d_x_optimizer = optim.Adam(D_X.parameters(), lr, [beta1, beta2])
-d_y_optimizer = optim.Adam(D_Y.parameters(), lr, [beta1, beta2])
+g_optimizer = optim.Adam(g_params, lr=lr, betas=(beta1, beta2))
+d_x_optimizer = optim.Adam(D_X.parameters(), lr=lr, betas=(beta1, beta2))
+d_y_optimizer = optim.Adam(D_Y.parameters(), lr=lr, betas=(beta1, beta2))
 
 # -----------------------------
 # Training loop
