@@ -9,7 +9,7 @@ import numpy as np
 
 from data_loader import get_data_loader, scale
 from cyclegan_model import create_model
-
+from utils import save_
 
 # -----------------------------
 # Loss functions
@@ -47,6 +47,58 @@ g_optimizer = optim.Adam(g_params, lr=lr, betas=(beta1, beta2))
 d_x_optimizer = optim.Adam(D_X.parameters(), lr=lr, betas=(beta1, beta2))
 d_y_optimizer = optim.Adam(D_Y.parameters(), lr=lr, betas=(beta1, beta2))
 
+# -----------------------------
+# Save result images
+# -----------------------------
+def save_samples(epoch, fixed_Y, fixed_X, G_YtoX, G_XtoY, batch_size=16, output_dir=''):
+    """Saves generated samples along with the original images for comparison.
+    
+    目的：
+    - 固定一組 X/Y 的測試圖片（fixed_X / fixed_Y），每隔幾個 epoch 存一次輸出結果
+    - 方便觀察 CycleGAN 訓練過程：生成結果是否越來越像目標 domain
+    
+    輸出內容：
+    - epoch_{epoch}_comparison_X.png：左半是真實 Y（例如 snow），右半是 Y->X 生成結果（例如 sunny）
+    - epoch_{epoch}_comparison_Y.png：左半是真實 X（例如 sunny），右半是 X->Y 生成結果（例如 snow）
+    
+    注意：
+    - fixed_X / fixed_Y 應該已經被 scale 到 [-1, 1]，與 generator tanh 輸出一致
+    - normalize=True 會把 tensor 的值映射到 [0, 1] 再存成圖片
+    """
+    # 創建輸出目錄（若 output_dir=''，會存到目前工作目錄）
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 確保模型和數據在同一設備上（CPU 或 GPU）
+    device = next(G_YtoX.parameters()).device
+    fixed_Y = fixed_Y.to(device)
+    fixed_X = fixed_X.to(device)
+
+    # 切到 eval 模式：BatchNorm 會使用推論統計，結果更穩定
+    G_YtoX.eval()
+    G_XtoY.eval()
+
+    with torch.no_grad():
+        # 生成圖片
+        # fake_X：把 domain Y 的圖片轉成 X（例如 snow -> sunny）
+        # fake_Y：把 domain X 的圖片轉成 Y（例如 sunny -> snow）
+        fake_X = G_YtoX(fixed_Y[:batch_size]).detach()
+        fake_Y = G_XtoY(fixed_X[:batch_size]).detach()
+
+    # 將原始圖片與生成圖片沿寬度拼接，形成「左原圖 / 右生成圖」對照
+    # 拼接 Y->X
+    comparison_X = torch.cat((fixed_Y[:batch_size], fake_X), dim=3)  # dim=3 表示沿 width 拼接
+    # 拼接 X->Y
+    comparison_Y = torch.cat((fixed_X[:batch_size], fake_Y), dim=3)
+
+    # 保存拼接後的圖片
+    file_path_X = os.path.join(output_dir, f'epoch_{epoch}_comparison_X.png')
+    file_path_Y = os.path.join(output_dir, f'epoch_{epoch}_comparison_Y.png')
+
+    torchvision.utils.save_image(comparison_X, file_path_X, normalize=True)
+    torchvision.utils.save_image(comparison_Y, file_path_Y, normalize=True)
+
+    print(f"Comparison samples saved at epoch {epoch}!")
+    
 # -----------------------------
 # Training loop
 # -----------------------------
@@ -182,74 +234,12 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
 
     return losses
 
-
-# -----------------------------
-# CLI / main
-# -----------------------------
-def parse_args():
-    p = argparse.ArgumentParser()
-    p.add_argument("--data_dir", type=str, required=True, help="資料集根目錄，例如 D:/work/weather/")
-    p.add_argument("--image_size", type=int, default=128)
-    p.add_argument("--batch_size", type=int, default=16)
-    p.add_argument("--epochs", type=int, default=2000)
-    p.add_argument("--lr", type=float, default=0.0002)
-    p.add_argument("--beta1", type=float, default=0.5)
-    p.add_argument("--beta2", type=float, default=0.999)
-    p.add_argument("--n_res_blocks", type=int, default=6)
-    p.add_argument("--sample_every", type=int, default=500)
-    p.add_argument("--print_every", type=int, default=10)
-    p.add_argument("--lambda_cycle", type=float, default=10.0)
-    p.add_argument("--out_dir", type=str, default="outputs/samples")
-    p.add_argument("--num_workers", type=int, default=0)
-    return p.parse_args()
-
-
-if __name__ == "__main__":
-    args = parse_args()
-
-    # 建立資料
-    dataloader_X, test_dataloader_X = get_data_loader(
-        image_type="sunny",
-        image_dir=args.data_dir,
-        image_size=args.image_size,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers
-    )
-    dataloader_Y, test_dataloader_Y = get_data_loader(
-        image_type="snow",
-        image_dir=args.data_dir,
-        image_size=args.image_size,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers
-    )
-
-    # 建立模型
-    G_XtoY, G_YtoX, D_X, D_Y = create_model(g_conv_dim=64, d_conv_dim=64, n_res_blocks=args.n_res_blocks)
-
-    # 建立 optimizer（Adam 超參數是 CycleGAN/LSGAN 常見設定）
-    g_params = list(G_XtoY.parameters()) + list(G_YtoX.parameters())
-    g_optimizer = optim.Adam(g_params, args.lr, [args.beta1, args.beta2])
-    d_x_optimizer = optim.Adam(D_X.parameters(), args.lr, [args.beta1, args.beta2])
-    d_y_optimizer = optim.Adam(D_Y.parameters(), args.lr, [args.beta1, args.beta2])
-
-    # 開始訓練
-    losses = training_loop(
-        dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader_Y,
-        G_XtoY, G_YtoX, D_X, D_Y,
-        g_optimizer, d_x_optimizer, d_y_optimizer,
-        n_epochs=args.epochs,
-        print_every=args.print_every,
-        sample_every=args.sample_every,
-        lambda_cycle=args.lambda_cycle,
-        out_dir=args.out_dir
-    )
-
-    # 繪製 loss 曲線（d_X / d_Y / generator）
-    fig, ax = plt.subplots(figsize=(12, 8))
-    losses = np.array(losses)
-    plt.plot(losses.T[0], label="Discriminator, X", alpha=0.5)
-    plt.plot(losses.T[1], label="Discriminator, Y", alpha=0.5)
-    plt.plot(losses.T[2], label="Generators", alpha=0.5)
-    plt.title("Training Losses")
-    plt.legend()
+# 繪製 loss 曲線（d_X / d_Y / generator）
+fig, ax = plt.subplots(figsize=(12, 8))
+losses = np.array(losses)
+plt.plot(losses.T[0], label="Discriminator, X", alpha=0.5)
+plt.plot(losses.T[1], label="Discriminator, Y", alpha=0.5)
+plt.plot(losses.T[2], label="Generators", alpha=0.5)
+plt.title("Training Losses")
+plt.legend()
     plt.show()
