@@ -4,16 +4,6 @@ import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-# helper imshow function
-# 將 tensor 格式的影像顯示在 matplotlib 上
-# make_grid 產生的影像格式是 (C, H, W)，matplotlib 需要 (H, W, C)，所以要轉置
-def imshow(img):
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.axis("off")  # 顯示圖片時通常不需要座標軸
-
-
 def save_samples(epoch, fixed_Y, fixed_X, G_YtoX, G_XtoY, batch_size=16, output_dir=''):
     """Saves generated samples along with the original images for comparison.
     
@@ -100,3 +90,8 @@ def view_samples(iteration, sample_dir):
     ax2.axis("off")
 
     plt.show()
+
+## utils
+n_epochs = 2000 # keep this small when testing if a model first works, then increase it to >=1000
+
+losses = training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader_Y, n_epochs=n_epochs)
