@@ -145,14 +145,14 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
         G_YtoX.train()
         D_X.train()
         D_Y.train()
+
+        images_X, _ = next(iter_X)
+        images_Y, _ = next(iter_Y)
         
         # 重新建立 iterator（避免 StopIteration）
         if epoch % batches_per_epoch == 0:
             iter_X = iter(dataloader_X)
             iter_Y = iter(dataloader_Y)
-
-        images_X, _ = next(iter_X)
-        images_Y, _ = next(iter_Y)
 
         # 將 [0,1] 映射到 [-1,1]
         images_X = scale(images_X)
@@ -200,19 +200,19 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
 
         # Y -> X
         G_X_img = G_YtoX(images_Y)
-        G_X_real_loss = real_mse_loss(D_X(G_X_img))
+        G_X_real_loss = real_mse_loss(D_X(G_X_img)) # 希望 Fake_X 能騙過 D_X
 
         # cycle: Y -> X -> Y
         G_Y_reconstructed = G_XtoY(G_X_img)
-        G_Y_consistency_loss = cycle_consistency_loss(images_Y, G_Y_reconstructed, lambda_cycle)
+        G_Y_consistency_loss = cycle_consistency_loss(images_Y, G_Y_reconstructed, lambda_cycle) # 希望能轉回 Y 
 
         # X -> Y
         G_Y_img = G_XtoY(images_X)
-        G_Y_real_loss = real_mse_loss(D_Y(G_Y_img))
+        G_Y_real_loss = real_mse_loss(D_Y(G_Y_img)) # 希望 Fake_Y 能騙過 D_Y
 
         # cycle: X -> Y -> X
         G_X_reconstructed = G_YtoX(G_Y_img)
-        G_X_consistency_loss = cycle_consistency_loss(images_X, G_X_reconstructed, lambda_cycle)
+        G_X_consistency_loss = cycle_consistency_loss(images_X, G_X_reconstructed, lambda_cycle) # 希望能轉回 X
 
         # generator total loss
         g_total_loss = G_X_real_loss + G_Y_real_loss + G_Y_consistency_loss + G_X_consistency_loss
@@ -221,7 +221,7 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
 
         # log
         if epoch % print_every == 0:
-            losses.append((d_x_loss.item(), d_y_loss.item(), g_total_loss.item()))
+            losses.append((d_x_loss.item(), d_y_loss.item(), g_total_loss.item())) # Tensor 變成數字放面繪圖
             print(
                 "Epoch [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | g_total_loss: {:6.4f}".format(
                     epoch, n_epochs, d_x_loss.item(), d_y_loss.item(), g_total_loss.item()
@@ -242,4 +242,4 @@ plt.plot(losses.T[1], label="Discriminator, Y", alpha=0.5)
 plt.plot(losses.T[2], label="Generators", alpha=0.5)
 plt.title("Training Losses")
 plt.legend()
-    plt.show()
+plt.show()
