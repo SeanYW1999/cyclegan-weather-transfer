@@ -62,7 +62,7 @@ CycleGAN 包含以下組件：
 .
 ├── data.py               # 資料讀取 (Dataloader) 與 scale() 處理
 ├── cyclegan_model.py     # 生成器與判別器架構定義
-├── utils.py              # 視覺化工具 (imshow, save_samples)
+├── utils.py              # 視覺化工具 (view_samples)
 ├── train.py              # 訓練迴圈與 Loss 記錄
 └── outputs/
     └── samples/           # 訓練過程中產生的對照影像
