@@ -9,7 +9,7 @@ import numpy as np
 
 from data_loader import get_data_loader, scale
 from cyclegan_model import create_model
-from utils import save_
+from utils import save_samples
 
 # -----------------------------
 # Loss functions
