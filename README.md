@@ -25,7 +25,7 @@ This project applies CycleGAN for weather style transformation across scenes. Cy
 
 ---
 
-## 🛠 方法概述 / Methodology
+## 方法概述 / Methodology
 
 ### 1. 核心架構 / Architecture
 
